@@ -47,28 +47,13 @@ func init() {
 }
 
 func runMainMenu() error {
-	var err error
-	
 	ui.ShowStartupBanner()
 	
+	var err error
 	currentProvider, err = ai.NewProvider()
 	
 	if err != nil {
-		color.Red("\n  [!] SYSTEM ALERT: %v", err)
-		color.Yellow("      ForgeAI cannot start.")
-		
-		fmt.Println("\n  [1] Retry Connection")
-		fmt.Println("  [0] Exit")
-		fmt.Print("\n  Select > ")
-		
-		scanner := bufio.NewScanner(os.Stdin)
-		if scanner.Scan() {
-			if strings.TrimSpace(scanner.Text()) == "1" {
-				fmt.Print("\033[H\033[2J")
-				return runMainMenu()
-			}
-		}
-		return fmt.Errorf("setup failed: %w", err)
+		return runSetupWizard(err)
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -114,6 +99,56 @@ func runMainMenu() error {
 			ui.ShowStartupBanner()
 		}
 	}
+	return nil
+}
+
+func runSetupWizard(originalErr error) error {
+	color.Yellow("\n  [!] SETUP REQUIRED")
+	fmt.Println("  ForgeAI needs an API Key to function properly.")
+	fmt.Printf("  (Error: %v)\n", originalErr)
+	fmt.Println()
+	
+	fmt.Println("  1. Setup Google Gemini Key (Recommended/Free)")
+	fmt.Println("  2. I want to use Ollama (Local Only)")
+	fmt.Println("  0. Exit")
+	
+	fmt.Print("\n  Select > ")
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() { return nil }
+	
+	choice := strings.TrimSpace(scanner.Text())
+	
+	if choice == "1" {
+		fmt.Println("\n  Get your key here: https://aistudio.google.com/app/apikey")
+		fmt.Print("  Paste Gemini API Key: ")
+		if scanner.Scan() {
+			apiKey := strings.TrimSpace(scanner.Text())
+			if apiKey == "" {
+				color.Red("  Empty key provided.")
+				return fmt.Errorf("setup aborted")
+			}
+
+			err := config.CreateEnvFile(apiKey)
+			if err != nil {
+				color.Red("  Failed to create .env file: %v", err)
+				return err
+			}
+			
+			color.Green("  [OK] Configuration saved! Restarting...")
+			time.Sleep(1 * time.Second)
+			
+			godotenv.Load() 
+			fmt.Print("\033[H\033[2J")
+			return runMainMenu()
+		}
+	} else if choice == "2" {
+		color.Yellow("\n  Make sure Ollama is running on port 11434.")
+		fmt.Println("  Press Enter to check connection...")
+		scanner.Scan()
+		fmt.Print("\033[H\033[2J")
+		return runMainMenu()
+	}
+	
 	return nil
 }
 
