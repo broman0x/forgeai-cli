@@ -27,35 +27,48 @@ var rootCmd = &cobra.Command{
 	Use:   "forgeai",
 	Short: "Professional AI CLI",
 	Args:  cobra.ArbitraryArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
-			runOneShot(strings.Join(args, " "))
-			return
+			return runOneShot(strings.Join(args, " "))
 		}
-		runMainMenu()
+		return runMainMenu()
 	},
 }
 
-func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		os.Exit(1)
-	}
+func Execute() error {
+	return rootCmd.Execute()
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
 	rootCmd.PersistentFlags().BoolVar(&noBanner, "no-banner", false, "disable banner")
+	cobra.MousetrapHelpText = ""
 }
 
-func runMainMenu() {
+func runMainMenu() error {
 	var err error
+	
 	ui.ShowStartupBanner()
-
+	
 	currentProvider, err = ai.NewProvider()
+	
 	if err != nil {
-		color.Red("  [ERROR] AI Init: %v", err)
-		return
+		color.Red("\n  [!] SYSTEM ALERT: %v", err)
+		color.Yellow("      ForgeAI cannot start.")
+		
+		fmt.Println("\n  [1] Retry Connection")
+		fmt.Println("  [0] Exit")
+		fmt.Print("\n  Select > ")
+		
+		scanner := bufio.NewScanner(os.Stdin)
+		if scanner.Scan() {
+			if strings.TrimSpace(scanner.Text()) == "1" {
+				fmt.Print("\033[H\033[2J")
+				return runMainMenu()
+			}
+		}
+		return fmt.Errorf("setup failed: %w", err)
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -69,52 +82,46 @@ func runMainMenu() {
 		fmt.Printf("  %s %s\n\n", cActive(" ACTIVE BRAIN "), currentProvider.Name())
 
 		printMenu := func(key, name, desc string) {
-			fmt.Printf("  %s %s %s   %-14s %s\n",
-				cBracket("["), cNum(key), cBracket("]"),
+			fmt.Printf("  %s %s %s   %-14s %s\n", 
+				cBracket("["), cNum(key), cBracket("]"), 
 				cName(name), cDesc(desc))
 		}
 
-		printMenu("1", "Chat Mode", "Interactive conversation")
-		printMenu("2", "Code Review", "Scan file for bugs")
-		printMenu("3", "Code Editor", "Edit file with AI diff")
+		printMenu("1", "Chat Mode",    "Interactive conversation")
+		printMenu("2", "Code Review",  "Scan file for bugs")
+		printMenu("3", "Code Editor",  "Edit file with AI diff")
 		printMenu("4", "Switch Model", "Change AI provider")
-		printMenu("5", "System Info", "Hardware dashboard")
+		printMenu("5", "System Info",  "Hardware dashboard")
 		fmt.Println()
-		printMenu("0", "Exit", "Close application")
-
+		printMenu("0", "Exit",         "Close application")
+		
 		fmt.Print("\n  Select Command > ")
 
-		if !scanner.Scan() {
-			break
-		}
+		if !scanner.Scan() { break }
 		choice := strings.TrimSpace(scanner.Text())
 
 		switch choice {
-		case "1":
-			startChatMode(scanner)
-		case "2":
-			StartReviewModeInteractive(scanner, currentProvider)
-		case "3":
-			StartEditModeInteractive(scanner, currentProvider)
-		case "4":
-			handleSwitchModel(scanner)
-		case "5":
-			StartInfoModeInteractive(scanner)
+		case "1": startChatMode(scanner)
+		case "2": StartReviewModeInteractive(scanner, currentProvider)
+		case "3": StartEditModeInteractive(scanner, currentProvider)
+		case "4": handleSwitchModel(scanner)
+		case "5": StartInfoModeInteractive(scanner)
 		case "0", "exit":
 			color.Cyan("\n  Shutting down... Goodbye!\n")
-			os.Exit(0)
+			return nil
 		default:
 			fmt.Print("\033[H\033[2J")
 			ui.ShowStartupBanner()
 		}
 	}
+	return nil
 }
 
 func startChatMode(scanner *bufio.Scanner) {
 	fmt.Print("\033[H\033[2J")
 	ui.ShowStartupBanner()
 	ui.PrintHeader("CHAT INTERFACE")
-
+	
 	fmt.Println(color.New(color.FgHiBlack).Sprint("  ----------------------------------------------------"))
 	fmt.Println()
 
@@ -126,15 +133,11 @@ func startChatMode(scanner *bufio.Scanner) {
 
 	for {
 		fmt.Printf("  %s\n  %s ", cUser("USER"), cArrow(">"))
-
-		if !scanner.Scan() {
-			break
-		}
+		
+		if !scanner.Scan() { break }
 		input := strings.TrimSpace(scanner.Text())
-
-		if input == "" {
-			continue
-		}
+		
+		if input == "" { continue }
 		if input == "back" || input == "exit" {
 			fmt.Print("\033[H\033[2J")
 			ui.ShowStartupBanner()
@@ -142,20 +145,21 @@ func startChatMode(scanner *bufio.Scanner) {
 		}
 		if input == "clear" || input == "cls" {
 			fmt.Print("\033[H\033[2J")
+			ui.ShowStartupBanner()
 			ui.PrintHeader("CHAT INTERFACE")
 			continue
 		}
 
 		fmt.Print("\n  " + cFaint("Thinking..."))
 		resp, err := currentProvider.Send(input)
-		fmt.Print("\r\033[K")
+		fmt.Print("\r\033[K") 
 
 		if err != nil {
 			color.Red("  [ERROR] %v\n", err)
 		} else {
 			fmt.Printf("  %s\n", cAI("FORGE AI"))
-			streamPrintIndented(resp, "   ")
-
+			streamPrintIndented(resp, "   ") 
+			
 			fmt.Println()
 			fmt.Println("  " + cDiv(strings.Repeat("-", 50)))
 			fmt.Println()
@@ -186,29 +190,22 @@ func handleSwitchModel(scanner *bufio.Scanner) {
 	fmt.Println("  2. Gemini Pro")
 	fmt.Println("  3. Ollama (Custom Model)")
 	fmt.Print("\n  Selection: ")
-
-	if !scanner.Scan() {
-		return
-	}
-
+	
+	if !scanner.Scan() { return }
+	
 	var p ai.Provider
 	var err error
-
+	
 	switch strings.TrimSpace(scanner.Text()) {
-	case "1":
-		p, err = ai.CreateProvider("gemini", "gemini-2.5-flash")
-	case "2":
-		p, err = ai.CreateProvider("gemini", "gemini-pro")
-	case "3":
+	case "1": p, err = ai.CreateProvider("gemini", "gemini-2.5-flash")
+	case "2": p, err = ai.CreateProvider("gemini", "gemini-pro")
+	case "3": 
 		fmt.Print("  Enter Model Name (default: llama3): ")
 		scanner.Scan()
 		model := strings.TrimSpace(scanner.Text())
-		if model == "" {
-			model = "llama3"
-		}
+		if model == "" { model = "llama3" }
 		p, err = ai.CreateProvider("ollama", model)
-	default:
-		return
+	default: return
 	}
 
 	if err == nil {
@@ -222,14 +219,13 @@ func handleSwitchModel(scanner *bufio.Scanner) {
 	}
 }
 
-func runOneShot(prompt string) {
+func runOneShot(prompt string) error {
 	p, err := ai.NewProvider()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	res, _ := p.Send(prompt)
+	if err != nil { return err }
+	res, err := p.Send(prompt)
+	if err != nil { return err }
 	fmt.Println(res)
+	return nil
 }
 
 func initConfig() {
