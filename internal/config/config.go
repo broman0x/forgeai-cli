@@ -29,7 +29,6 @@ func SaveFirstRun(status bool) {
 func CreateEnvFile(apiKey string) error {
 	content := fmt.Sprintf(`GEMINI_API_KEY=%s
 GEMINI_MODEL=gemini-2.5-flash
-# OPENROUTER_API_KEY=
 `, apiKey)
 
 	return os.WriteFile(".env", []byte(content), 0644)
