@@ -102,57 +102,99 @@ func runReviewLogicWithLang(prov ai.Provider, filePath string, language string) 
 
 	var prompt string
 	if language == "indonesian" {
-		prompt = fmt.Sprintf(`Kamu adalah senior code reviewer. Analisa kode %s ini dan berikan review terstruktur.
+		prompt = fmt.Sprintf(`Kamu adalah SENIOR SOFTWARE ARCHITECT dengan keahlian mendalam di %s, code review, dan system design.
 
-PENTING: Berikan response yang SINGKAT dan PADAT. Setiap poin maksimal 1 kalimat. Format PERSIS seperti ini:
+TASK: Lakukan code review profesional yang komprehensif untuk kode ini.
 
-## Ringkasan
-Gambaran singkat 1-2 kalimat
+ANALISA MENDALAM:
+1. ARCHITECTURE & DESIGN PATTERNS: Evaluasi struktur kode, design patterns yang digunakan/dibutuhkan
+2. CODE QUALITY: Clean code principles, readability, maintainability
+3. SECURITY VULNERABILITIES: Input validation, injection attacks, authentication/authorization issues
+4. PERFORMANCE: Bottlenecks, memory leaks, algorithmic complexity (Big O)
+5. ERROR HANDLING: Edge cases, exception handling, graceful degradation
+6. BEST PRACTICES: Language-specific idioms, modern features usage
+7. TESTING: Testability, coverage potential, test cases yang diperlukan
+8. SCALABILITY: Apakah kode siap untuk scale? Potential issues di production
 
-## Masalah Kritis
-- Masalah 1 (singkat)
-- Masalah 2 (singkat)
+FORMAT RESPONSE (RINGKAS & PADAT):
 
-## Keamanan
-- Poin keamanan 1 (singkat)
+## Ringkasan Eksekutif
+Gambaran umum kualitas kode dalam 2-3 kalimat
 
-## Performa
-- Poin performa 1 (singkat)
+## Masalah Kritis ⚠️
+- [Severity: HIGH/MEDIUM/LOW] Issue - dampak dan solusi singkat
 
-## Saran Improvement
-- Saran 1 (singkat)
-- Saran 2 (singkat)
+## Keamanan 🔒
+- Vulnerability yang ditemukan
+- Rekomendasi perbaikan security
 
-## Skor Kualitas
-X/10 - Alasan singkat
+## Performa & Optimasi ⚡
+- Bottleneck dan inefficiencies
+- Saran optimasi konkrit
+
+## Architecture & Design 🏗️
+- Design pattern yang bisa diterapkan
+- Code structure improvements
+
+## Best Practices & Clean Code ✨
+- Pelanggaran convention
+- Saran improvement readability
+
+## Testing & Maintainability 🧪
+- Test coverage gaps
+- Refactoring opportunities
+
+## Skor Kualitas 📊
+X/10 - Penjelasan detail berdasarkan Production Readiness, Security, Performance, Maintainability
 
 File: %s
 Kode:
 %s`, lang, filePath, string(content))
 	} else {
-		prompt = fmt.Sprintf(`You are a senior code reviewer. Analyze this %s code and provide a structured review.
+		prompt = fmt.Sprintf(`You are a SENIOR SOFTWARE ARCHITECT with deep expertise in %s, code review, and system design.
 
-IMPORTANT: Be VERY CONCISE. Each point should be max 1 sentence. Format EXACTLY like this:
+TASK: Perform a comprehensive professional code review.
 
-## Summary
-Brief 1-2 sentence overview
+IN-DEPTH ANALYSIS:
+1. ARCHITECTURE & DESIGN PATTERNS: Evaluate code structure, patterns used/needed
+2. CODE QUALITY: Clean code principles, readability, maintainability
+3. SECURITY VULNERABILITIES: Input validation, injection attacks, auth/authz issues
+4. PERFORMANCE: Bottlenecks, memory leaks, algorithmic complexity (Big O)
+5. ERROR HANDLING: Edge cases, exception handling, graceful degradation
+6. BEST PRACTICES: Language-specific idioms, modern features usage
+7. TESTING: Testability, coverage potential, required test cases
+8. SCALABILITY: Is code production-ready? Potential issues at scale
 
-## Critical Issues
-- Issue 1 (brief)
-- Issue 2 (brief)
+RESPONSE FORMAT (CONCISE & ACTIONABLE):
 
-## Security
-- Security point 1 (brief)
+## Executive Summary
+Overall code quality in 2-3 sentences
 
-## Performance
-- Performance point 1 (brief)
+## Critical Issues ⚠️
+- [Severity: HIGH/MEDIUM/LOW] Issue - impact and brief solution
 
-## Improvements
-- Improvement 1 (brief)
-- Improvement 2 (brief)
+## Security 🔒
+- Vulnerabilities found
+- Security hardening recommendations
 
-## Quality Score
-X/10 - Brief reason
+## Performance & Optimization ⚡
+- Bottlenecks and inefficiencies
+- Concrete optimization suggestions
+
+## Architecture & Design 🏗️
+- Applicable design patterns
+- Code structure improvements
+
+## Best Practices & Clean Code ✨
+- Convention violations
+- Readability improvement suggestions
+
+## Testing & Maintainability 🧪
+- Test coverage gaps
+- Refactoring opportunities
+
+## Quality Score 📊
+X/10 - Detailed explanation based on Production Readiness, Security, Performance, Maintainability
 
 File: %s
 Code:

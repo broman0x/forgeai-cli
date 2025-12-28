@@ -123,10 +123,10 @@ func runMainMenu() error {
 		fmt.Printf("  [ 1 ]   %s %s\n", lang.T("chat_mode"), lang.T("chat_mode_desc"))
 		fmt.Printf("  [ 2 ]   %s %s\n", lang.T("code_review"), lang.T("review_desc"))
 		fmt.Printf("  [ 3 ]   %s %s\n", lang.T("code_editor"), lang.T("editor_desc"))
-		fmt.Printf("  [ 4 ]   %s %s\n", lang.T("project_scanner"), lang.T("scanner_desc"))
-		fmt.Printf("  [ 5 ]   %s %s\n", lang.T("switch_model"), lang.T("switch_desc"))
-		fmt.Printf("  [ 6 ]   %s %s\n", lang.T("system_info"), lang.T("info_desc"))
-		fmt.Printf("  [ 7 ]   %s %s\n", lang.T("uninstall"), lang.T("uninstall_desc"))
+		fmt.Printf("  [ 4 ]   %s %s\n", lang.T("switch_model"), lang.T("switch_desc"))
+		fmt.Printf("  [ 5 ]   %s %s\n", lang.T("system_info"), lang.T("info_desc"))
+		fmt.Printf("  [ 6 ]   %s %s\n", lang.T("uninstall"), lang.T("uninstall_desc"))
+		fmt.Printf("  [ 7 ]   %s\n", "Change API Key")
 		fmt.Println()
 		fmt.Printf("  [ 0 ]   %s %s\n", lang.T("exit"), lang.T("exit_desc"))
 
@@ -145,15 +145,15 @@ func runMainMenu() error {
 		case "3":
 			StartEditModeInteractive(scanner, currentProvider)
 		case "4":
-			StartScanModeInteractive(scanner, currentProvider)
-		case "5":
 			handleSwitchModel(scanner)
-		case "6":
+		case "5":
 			fmt.Print("\033[H\033[2J")
 			ui.ShowStartupBanner()
-		case "7":
+		case "6":
 			runUninstaller()
 			return nil
+		case "7":
+			handleChangeAPIKey(scanner)
 		case "0":
 			fmt.Printf("\n  %s\n\n", lang.T("shutting_down"))
 			return nil
@@ -436,6 +436,133 @@ Always be professional, helpful, and concise in your responses.`
 	}
 }
 
+func getAndValidateAPIKey(scanner *bufio.Scanner, keyName, keyURL, providerType, modelName string) bool {
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if attempt == 1 {
+			fmt.Printf("\n  Get your key: %s\n", keyURL)
+		} else {
+			color.Yellow("\n  Attempt %d of %d", attempt, maxRetries)
+		}
+
+		fmt.Print("  Paste API Key: ")
+		scanner.Scan()
+		apiKey := strings.TrimSpace(scanner.Text())
+
+		if apiKey == "" {
+			color.Red("  Empty key provided.")
+			if attempt < maxRetries {
+				fmt.Print("  Try again? [Y/n]: ")
+				scanner.Scan()
+				response := strings.ToLower(strings.TrimSpace(scanner.Text()))
+				if response == "n" || response == "no" {
+					return false
+				}
+				continue
+			}
+			return false
+		}
+
+		if err := config.SaveAPIKey(keyName, apiKey); err != nil {
+			color.Red("  Failed to save key: %v", err)
+			return false
+		}
+		godotenv.Load()
+
+		color.Cyan("\n  Validating API key...")
+		spinner := ui.NewSpinner("Testing connection")
+		spinner.Start()
+
+		testProvider, err := ai.CreateProvider(providerType, modelName)
+		if err != nil {
+			spinner.Stop()
+			color.Red("  ✗ Invalid API key: %v", err)
+
+			if attempt < maxRetries {
+				fmt.Print("\n  Try again? [Y/n]: ")
+				scanner.Scan()
+				response := strings.ToLower(strings.TrimSpace(scanner.Text()))
+				if response == "n" || response == "no" {
+					return false
+				}
+				continue
+			}
+			return false
+		}
+
+		_, err = testProvider.Send("Hi")
+		spinner.Stop()
+
+		if err != nil {
+			errMsg := strings.ToLower(err.Error())
+			if strings.Contains(errMsg, "api key") || strings.Contains(errMsg, "unauthorized") ||
+				strings.Contains(errMsg, "authentication") || strings.Contains(errMsg, "invalid") ||
+				strings.Contains(errMsg, "401") || strings.Contains(errMsg, "403") {
+				color.Red("  ✗ API Key validation failed: %v", err)
+
+				if attempt < maxRetries {
+					fmt.Print("\n  Try again? [Y/n]: ")
+					scanner.Scan()
+					response := strings.ToLower(strings.TrimSpace(scanner.Text()))
+					if response == "n" || response == "no" {
+						return false
+					}
+					continue
+				}
+				return false
+			}
+		}
+
+		color.Green("  ✓ API Key validated successfully!")
+		time.Sleep(500 * time.Millisecond)
+		return true
+	}
+
+	color.Red("\n  Maximum retry attempts reached. Please check your API key.")
+	return false
+}
+
+func handleChangeAPIKey(scanner *bufio.Scanner) {
+	ui.PrintHeader("CHANGE API KEY")
+	fmt.Println("  Select provider to change API key:")
+	fmt.Println("  1. Google Gemini")
+	fmt.Println("  2. OpenAI ChatGPT")
+	fmt.Println("  3. Anthropic Claude")
+	fmt.Println("  0. Back")
+	fmt.Print("\n  Selection: ")
+	scanner.Scan()
+	choice := strings.TrimSpace(scanner.Text())
+
+	switch choice {
+	case "1":
+		color.Cyan("\n  Changing Gemini API Key...")
+		if getAndValidateAPIKey(scanner, "GEMINI_API_KEY", "https://aistudio.google.com/app/apikey", "gemini", "gemini-2.5-flash") {
+			color.Green("\n  ✓ Gemini API Key updated successfully!")
+			time.Sleep(1 * time.Second)
+		}
+	case "2":
+		color.Cyan("\n  Changing OpenAI API Key...")
+		if getAndValidateAPIKey(scanner, "OPENAI_API_KEY", "https://platform.openai.com/api-keys", "openai", "gpt-3.5-turbo") {
+			color.Green("\n  ✓ OpenAI API Key updated successfully!")
+			time.Sleep(1 * time.Second)
+		}
+	case "3":
+		color.Cyan("\n  Changing Claude API Key...")
+		if getAndValidateAPIKey(scanner, "ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys", "claude", "claude-3-haiku-20240307") {
+			color.Green("\n  ✓ Claude API Key updated successfully!")
+			time.Sleep(1 * time.Second)
+		}
+	case "0":
+		// Back to menu
+		return
+	default:
+		color.Yellow("  Invalid selection")
+		time.Sleep(1 * time.Second)
+	}
+
+	fmt.Print("\033[H\033[2J")
+	ui.ShowStartupBanner()
+}
 
 func handleSwitchModel(scanner *bufio.Scanner) {
 	ui.PrintHeader("SWITCH AI PROVIDER")
@@ -453,27 +580,65 @@ func handleSwitchModel(scanner *bufio.Scanner) {
 	var p ai.Provider
 	var err error
 	var selectedModel string
+	var providerType string
 
 	switch choice {
 	case "1":
-		p, err = ai.CreateProvider("gemini", "gemini-2.5-flash")
+		providerType = "gemini"
 		selectedModel = "gemini-2.5-flash"
+		if os.Getenv("GEMINI_API_KEY") == "" {
+			if !getAndValidateAPIKey(scanner, "GEMINI_API_KEY", "https://aistudio.google.com/app/apikey", providerType, selectedModel) {
+				return
+			}
+		}
+		p, err = ai.CreateProvider("gemini", selectedModel)
 	case "2":
-		p, err = ai.CreateProvider("gemini", "gemini-pro")
+		providerType = "gemini"
 		selectedModel = "gemini-pro"
+		if os.Getenv("GEMINI_API_KEY") == "" {
+			if !getAndValidateAPIKey(scanner, "GEMINI_API_KEY", "https://aistudio.google.com/app/apikey", providerType, selectedModel) {
+				return
+			}
+		}
+		p, err = ai.CreateProvider("gemini", selectedModel)
 	case "3":
-		p, err = ai.CreateProvider("openai", "gpt-3.5-turbo")
+		providerType = "openai"
 		selectedModel = "gpt-3.5-turbo"
+		if os.Getenv("OPENAI_API_KEY") == "" {
+			if !getAndValidateAPIKey(scanner, "OPENAI_API_KEY", "https://platform.openai.com/api-keys", providerType, selectedModel) {
+				return
+			}
+		}
+		p, err = ai.CreateProvider("openai", selectedModel)
 	case "4":
-		p, err = ai.CreateProvider("openai", "gpt-4")
+		providerType = "openai"
 		selectedModel = "gpt-4"
+		if os.Getenv("OPENAI_API_KEY") == "" {
+			if !getAndValidateAPIKey(scanner, "OPENAI_API_KEY", "https://platform.openai.com/api-keys", providerType, selectedModel) {
+				return
+			}
+		}
+		p, err = ai.CreateProvider("openai", selectedModel)
 	case "5":
-		p, err = ai.CreateProvider("claude", "claude-3-haiku-20240307")
+		providerType = "claude"
 		selectedModel = "claude-3-haiku-20240307"
+		if os.Getenv("ANTHROPIC_API_KEY") == "" {
+			if !getAndValidateAPIKey(scanner, "ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys", providerType, selectedModel) {
+				return
+			}
+		}
+		p, err = ai.CreateProvider("claude", selectedModel)
 	case "6":
-		p, err = ai.CreateProvider("claude", "claude-3-sonnet-20240229")
+		providerType = "claude"
 		selectedModel = "claude-3-sonnet-20240229"
+		if os.Getenv("ANTHROPIC_API_KEY") == "" {
+			if !getAndValidateAPIKey(scanner, "ANTHROPIC_API_KEY", "https://console.anthropic.com/settings/keys", providerType, selectedModel) {
+				return
+			}
+		}
+		p, err = ai.CreateProvider("claude", selectedModel)
 	case "7":
+		providerType = "ollama"
 		ui.PrintHeader("ENTER OLLAMA MODEL")
 		fmt.Print("  Model name: ")
 		scanner.Scan()
@@ -488,19 +653,6 @@ func handleSwitchModel(scanner *bufio.Scanner) {
 
 	if err == nil {
 		currentProvider = p
-
-		var providerType string
-
-		switch choice {
-		case "1", "2":
-			providerType = "gemini"
-		case "3", "4":
-			providerType = "openai"
-		case "5", "6":
-			providerType = "claude"
-		case "7":
-			providerType = "ollama"
-		}
 
 		if err := config.SaveLastModel(providerType, selectedModel); err != nil {
 			color.Red("  Warning: Could not save model preference: %v\n", err)
