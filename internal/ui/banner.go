@@ -3,26 +3,32 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/broman0x/forgeai-cli/internal/sysinfo"
-	"github.com/common-nighthawk/go-figure"
 	"github.com/fatih/color"
 )
 
 func ShowStartupBanner() {
-	cSub := color.New(color.FgHiBlack)
+	cTitle := color.New(color.FgHiCyan, color.Bold)
+	cSubtitle := color.New(color.FgCyan)
 	cLabel := color.New(color.FgHiWhite).SprintFunc()
-	cValue := color.New(color.FgWhite, color.Faint).SprintFunc()
-	cBorder := color.New(color.FgHiBlue).SprintFunc()
-	cSuccess := color.New(color.FgGreen, color.Bold).SprintFunc()
+	cValue := color.New(color.FgWhite).SprintFunc()
+	cAccent := color.New(color.FgHiMagenta).SprintFunc()
+	cSuccess := color.New(color.FgGreen).SprintFunc()
 	cFail := color.New(color.FgRed).SprintFunc()
-	cAccent := color.New(color.FgCyan).SprintFunc()
+	cBorder := color.New(color.FgHiBlack).SprintFunc()
 
 	fmt.Println()
-	myFigure := figure.NewColorFigure("THE FORGE", "slant", "cyan", true)
-	myFigure.Print()
-	cSub.Println("   v1.0.0 • by bromanprjkt")
+
+	cTitle.Println("  ███████╗ ██████╗ ██████╗  ██████╗ ███████╗")
+	cTitle.Println("  ██╔════╝██╔═══██╗██╔══██╗██╔════╝ ██╔════╝")
+	cTitle.Println("  █████╗  ██║   ██║██████╔╝██║  ███╗█████╗  ")
+	cTitle.Println("  ██╔══╝  ██║   ██║██╔══██╗██║   ██║██╔══╝  ")
+	cTitle.Println("  ██║     ╚██████╔╝██║  ██║╚██████╔╝███████╗")
+	cTitle.Println("  ╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝")
+
+	cSubtitle.Println("          AI-Powered Development Assistant")
+	fmt.Printf("          %s\n", cBorder("v1.0.1 • by bromanprjkt"))
 	fmt.Println()
 
 	info, err := sysinfo.GetSystemDetails()
@@ -30,70 +36,66 @@ func ShowStartupBanner() {
 		return
 	}
 
-	width := 60
-	hr := strings.Repeat("-", width)
+	fmt.Println(cBorder("  ┌───────────────────────────────────────────────────────┐"))
 
-	fmt.Println(cBorder("  +" + hr + "+"))
+	printCompactRow := func(icon, label, value string, status ...bool) {
+		useSuccess := len(status) > 0 && status[0]
+		useFail := len(status) > 1 && status[1]
 
-	printRow := func(label, value string, valColor func(a ...interface{}) string) {
-		if valColor == nil {
-			valColor = cValue
-		}
-		prefix := "  " + cAccent("+") + " " + cLabel(label)
-		rawPrefix := "  + " + label
-		cleanVal := strings.TrimSpace(value)
-		lenPrefix := utf8.RuneCountInString(rawPrefix)
-		lenVal := utf8.RuneCountInString(cleanVal)
-		gap := width - lenPrefix - lenVal - 1
-
-		if gap < 2 {
-			maxLen := width - lenPrefix - 4
-			if maxLen > 10 {
-				head := cleanVal[:10]
-				tail := cleanVal[lenVal-(maxLen-13):]
-				cleanVal = head + "..." + tail
-				lenVal = utf8.RuneCountInString(cleanVal)
-				gap = width - lenPrefix - lenVal - 1
-			} else {
-				gap = 1
-			}
+		colorFunc := cValue
+		if useSuccess {
+			colorFunc = cSuccess
+		} else if useFail {
+			colorFunc = cFail
 		}
 
-		fmt.Printf(cBorder("  |")+"%s%s%s "+cBorder("|")+"\n",
-			prefix,
-			strings.Repeat(" ", gap),
-			valColor(cleanVal),
-		)
+		displayValue := value
+		if len(value) > 45 {
+			displayValue = value[:42] + "..."
+		}
+
+		fmt.Printf("%s  %s %-12s %s %s\n",
+			cBorder("  │"),
+			cAccent(icon),
+			cLabel(label),
+			cBorder("│"),
+			colorFunc(displayValue))
 	}
 
-	printRow("OS Platform", fmt.Sprintf("%s/%s", info.OS, info.Arch), nil)
-	printRow("CPU Chipset", info.CPUModel, nil)
-	printRow("Core Threads", fmt.Sprintf("%d Cores", info.CPUCores), nil)
-	printRow("RAM Capacity", info.TotalRAM, nil)
-	printRow("GPU Adapter", info.GPUName, nil)
+	printCompactRow(">", "Platform", fmt.Sprintf("%s/%s", info.OS, info.Arch))
+	printCompactRow(">", "CPU", info.CPUModel)
+	printCompactRow(">", "Cores", fmt.Sprintf("%d threads", info.CPUCores))
+	printCompactRow(">", "Memory", info.TotalRAM)
 
-	fmt.Println(cBorder("  +" + hr + "+"))
-	netTxt, netClr := "Offline [X]", cFail
+	if info.GPUName != "" && info.GPUName != "N/A" {
+		printCompactRow(">", "GPU", info.GPUName)
+	}
+
+	fmt.Println(cBorder("  ├───────────────────────────────────────────────────────┤"))
+
 	if info.InternetConn {
-		netTxt, netClr = "Connected [OK]", cSuccess
+		printCompactRow("+", "Network", "Connected", true, false)
+	} else {
+		printCompactRow("X", "Network", "Offline", false, true)
 	}
-	printRow("Network", netTxt, netClr)
 
-	aiTxt, aiClr := "Disconnected [X]", cFail
 	if info.OllamaActive {
-		aiTxt, aiClr = "Online (Local) [OK]", cSuccess
+		printCompactRow("+", "Ollama", "Running", true, false)
+	} else {
+		printCompactRow("X", "Ollama", "Not Available", false, true)
 	}
-	printRow("Ollama Service", aiTxt, aiClr)
 
-	printRow("Model Storage", info.OllamaModelPath, nil)
+	if info.OllamaModelPath != "" && info.OllamaModelPath != "N/A" {
+		printCompactRow(">", "Models", info.OllamaModelPath)
+	}
 
-	fmt.Println(cBorder("  +" + hr + "+"))
+	fmt.Println(cBorder("  └───────────────────────────────────────────────────────┘"))
 	fmt.Println()
 }
 
 func PrintHeader(title string) {
 	cBox := color.New(color.FgHiCyan, color.Bold).SprintFunc()
 	fmt.Println()
-	fmt.Println(cBox("  :: " + strings.ToUpper(title)))
+	fmt.Println(cBox("  " + strings.ToUpper(title)))
 	fmt.Println()
 }

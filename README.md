@@ -1,91 +1,209 @@
+<div align="center">
+
 # ForgeAI CLI
 
-[![Release](https://img.shields.io/github/v/release/broman0x/forgeai-cli)](https://github.com/broman0x/forgeai-cli/releases/latest)
+**AI-Powered Terminal Assistant for Developers**
 
-ForgeAI CLI is a nimble, developer-friendly command-line tool that puts AI where you work: the terminal. Use local models via Ollama or cloud models like Gemini to chat, review code, and apply edits — fast.
+[![Release](https://img.shields.io/github/v/release/broman0x/forgeai-cli?label=Release&color=blue)](https://github.com/broman0x/forgeai-cli/releases/latest)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20|%20Linux%20|%20macOS-lightgrey.svg)](https://github.com/broman0x/forgeai-cli)
 
 ![ForgeAI CLI screenshot](https://i.imgur.com/NOTp3b2.png)
 
-_Screenshot: interactive dashboard and example output_
+[English](#english) • [Indonesia](#indonesia)
 
-Why it exists
-------------
-Because sometimes you want quick, contextual help without leaving your editor. ForgeAI gives you:
+</div>
 
-- Instant conversation with an AI assistant
-- Smart code reviews and patch-ready diffs
-- A quick system dashboard (hardware, network, Ollama)
+---
 
-Key features
-------------
-- Interactive chat and single-shot prompts
-- AI-driven code review with readable reports
-- Edit suggestions with unified diff previews
-- Automatic provider selection: Gemini (cloud) or Ollama (local)
+## English
 
-Prerequisites
--------------
-- Go 1.20+ (modules enabled)
-- Optional: Ollama running locally (default: `localhost:11434`)
-- For Gemini: `GEMINI_API_KEY` in your environment
-
-Quick start
------------
-Clone, build, run:
+### Quick Start
 
 ```bash
-git clone https://github.com/broman0x/forgeai-cli.git
-cd forgeai-cli
-./forgeai        # or `go run .`
+# Download forge executable, then:
+./forge --install    # One-command install
+forge                # Launch
 ```
 
-Shortcuts
----------
-- Windows: `forge.bat <args>`
-- Linux/Mac: `./forge.sh <args>`
+### Features
 
-Common commands
----------------
-- `forgeai ask "Explain this code"` — one-off prompt
-- `forgeai review path/to/file.go` — AI review report
-- `forgeai edit path/to/file.go "Refactor for clarity"` — proposed code edits + diff
-- `forgeai info` — system & config dashboard
+<table>
+<tr>
+<td width="50%">
 
-Configuration
--------------
-ForgeAI uses Viper. Defaults are provided in code; override them with `$HOME/.forgeai/config.yaml`:
+**AI Providers**
+- Ollama (Local & Free)
+- Google Gemini
+- OpenAI GPT
+- Anthropic Claude
 
-```yaml
-provider: "gemini"  # or "ollama"
-model: "gemini-2.5-flash"
-first_run: false
+</td>
+<td width="50%">
+
+**Capabilities**
+- Interactive Chat Mode
+- Smart Code Review
+- AI Code Editor
+- Project Scanner
+
+</td>
+</tr>
+</table>
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Bilingual** | Full English & Indonesian support |
+| **Cross-Platform** | Windows, Linux, macOS |
+| **Beautiful UI** | Modern terminal interface |
+| **Smart Memory** | Remembers your last AI model |
+| **Self-Installing** | No dependencies needed |
+
+### Installation
+
+**One command:**
+```bash
+./forge --install
 ```
 
-Environment variables
-- `GEMINI_API_KEY` — required for Gemini
+**Restart terminal, then:**
+```bash
+forge --version
+```
 
-How providers work
-------------------
-- Gemini: cloud model, needs `GEMINI_API_KEY` and internet access.
-- Ollama: local model server; ForgeAI will detect a running Ollama and prefer it when available.
+### Quick Setup
 
-Troubleshooting
----------------
-- Ollama unavailable? Check health endpoint:
+**For Ollama (Free, Local):**
+```bash
+# Install from: https://ollama.com
+ollama run llama3
+forge  # Select Ollama
+```
+
+**For Cloud AI:**
+```bash
+export GEMINI_API_KEY="your-key"
+export OPENAI_API_KEY="your-key"
+export ANTHROPIC_API_KEY="your-key"
+```
+
+### Usage
 
 ```bash
-curl http://localhost:11434/health
+forge                # Interactive menu
+forge --version      # Check version
+forge --uninstall    # Remove
 ```
 
-- Gemini errors? Verify `GEMINI_API_KEY` and network access.
+### File Locations
 
-Releases
---------
-Get the latest release and downloadable artifacts here:
+```bash
+# Windows
+%LocalAppData%\ForgeAI\forge.exe
 
-https://github.com/broman0x/forgeai-cli/releases/latest
+# Linux/macOS
+~/.local/bin/forge
+```
 
+---
 
-License
--------
-MIT — see `LICENSE`.
+## Indonesia
+
+### Mulai Cepat
+
+```bash
+# Download executable forge, terus:
+./forge --install    # Install satu command
+forge                # Jalankan
+```
+
+### Fitur
+
+<table>
+<tr>
+<td width="50%">
+
+**AI Provider**
+- Ollama (Lokal & Gratis)
+- Google Gemini
+- OpenAI GPT
+- Anthropic Claude
+
+</td>
+<td width="50%">
+
+**Kemampuan**
+- Mode Chat Interaktif
+- Review Kode Pintar
+- Editor Kode AI
+- Scan Project
+
+</td>
+</tr>
+</table>
+
+### Keunggulan
+
+| Fitur | Keterangan |
+|-------|------------|
+| **Dwibahasa** | Support English & Indonesia |
+| **Cross-Platform** | Windows, Linux, macOS |
+| **UI Keren** | Interface terminal modern |
+| **Smart Memory** | Inget AI model terakhir |
+| **Self-Install** | Ga perlu install apa-apa |
+
+### Instalasi
+
+**Satu command doang:**
+```bash
+./forge --install
+```
+
+**Restart terminal, abis itu:**
+```bash
+forge --version
+```
+
+### Setup Cepat
+
+**Pakai Ollama (Gratis, Lokal):**
+```bash
+# Install dari: https://ollama.com
+ollama run llama3
+forge  # Pilih Ollama
+```
+
+**Pakai Cloud AI:**
+```bash
+export GEMINI_API_KEY="key-lo"
+export OPENAI_API_KEY="key-lo"
+export ANTHROPIC_API_KEY="key-lo"
+```
+
+### Cara Pakai
+
+```bash
+forge                # Menu interaktif
+forge --version      # Cek versi
+forge --uninstall    # Hapus
+```
+
+### Lokasi File
+
+```bash
+# Windows
+%LocalAppData%\ForgeAI\forge.exe
+
+# Linux/macOS
+~/.local/bin/forge
+```
+
+---
+
+<div align="center">
+
+**License:** MIT
+
+</div>

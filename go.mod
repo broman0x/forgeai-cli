@@ -3,15 +3,13 @@ module github.com/broman0x/forgeai-cli
 go 1.25.4
 
 require (
-	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be
 	github.com/fatih/color v1.18.0
+	github.com/joho/godotenv v1.5.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 )
-
-require github.com/joho/godotenv v1.5.1
 
 require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect

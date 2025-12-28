@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/broman0x/forgeai-cli/internal/config"
 	"github.com/spf13/viper"
 )
 
@@ -34,6 +35,26 @@ func CreateProvider(pType, modelName string) (Provider, error) {
 		}
 		return newGeminiProvider(key, modelName), nil
 
+	case "openai", "chatgpt":
+		key := os.Getenv("OPENAI_API_KEY")
+		if key == "" {
+			return nil, fmt.Errorf("OPENAI_API_KEY not found in .env")
+		}
+		if modelName == "" {
+			modelName = "gpt-3.5-turbo"
+		}
+		return newOpenAIProvider(key, modelName), nil
+
+	case "claude", "anthropic":
+		key := os.Getenv("ANTHROPIC_API_KEY")
+		if key == "" {
+			return nil, fmt.Errorf("ANTHROPIC_API_KEY not found in .env")
+		}
+		if modelName == "" {
+			modelName = "claude-3-haiku-20240307"
+		}
+		return newClaudeProvider(key, modelName), nil
+
 	case "ollama":
 		if !isOllamaRunning() {
 			return nil, fmt.Errorf("ollama is not running")
@@ -49,26 +70,64 @@ func CreateProvider(pType, modelName string) (Provider, error) {
 }
 
 func NewProvider() (Provider, error) {
-	configProvider := strings.ToLower(viper.GetString("provider"))
+	cfg := config.Load()
 
-	prov, err := CreateProvider(configProvider, "")
-	if err == nil {
-		return prov, nil
-	}
-
-	if os.Getenv("GEMINI_API_KEY") != "" {
-		return CreateProvider("gemini", "gemini-2.5-flash")
+	if cfg.LastProvider != "" && cfg.LastModel != "" {
+		prov, err := CreateProvider(cfg.LastProvider, cfg.LastModel)
+		if err == nil {
+			return prov, nil
+		}
 	}
 
 	if isOllamaRunning() {
 		return CreateProvider("ollama", "llama3")
 	}
 
-	return nil, fmt.Errorf("no active AI provider found. Check .env or start Ollama")
+	configProvider := strings.ToLower(viper.GetString("provider"))
+	if configProvider != "" {
+		prov, err := CreateProvider(configProvider, "")
+		if err == nil {
+			return prov, nil
+		}
+	}
+
+	if os.Getenv("GEMINI_API_KEY") != "" {
+		return CreateProvider("gemini", "gemini-2.5-flash")
+	}
+
+	if os.Getenv("OPENAI_API_KEY") != "" {
+		return CreateProvider("openai", "gpt-3.5-turbo")
+	}
+
+	if os.Getenv("ANTHROPIC_API_KEY") != "" {
+		return CreateProvider("claude", "claude-3-haiku-20240307")
+	}
+
+	return nil, fmt.Errorf("no AI provider available. Please set up API key or start Ollama")
+}
+
+func getOllamaHost() string {
+	host := os.Getenv("OLLAMA_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	return host
+}
+
+func getOllamaPort() string {
+	port := os.Getenv("OLLAMA_PORT")
+	if port == "" {
+		port = "11434"
+	}
+	return port
 }
 
 func isOllamaRunning() bool {
-	conn, err := net.DialTimeout("tcp", "localhost:11434", 100*time.Millisecond)
+	host := getOllamaHost()
+	port := getOllamaPort()
+	addr := fmt.Sprintf("%s:%s", host, port)
+
+	conn, err := net.DialTimeout("tcp", addr, 1000*time.Millisecond)
 	if err != nil {
 		return false
 	}
@@ -180,8 +239,12 @@ type ollamaResponse struct {
 }
 
 func newOllamaProvider(model string) *OllamaProvider {
+	host := getOllamaHost()
+	port := getOllamaPort()
+	baseURL := fmt.Sprintf("http://%s:%s/api/chat", host, port)
+
 	return &OllamaProvider{
-		BaseURL: "http://localhost:11434/api/chat",
+		BaseURL: baseURL,
 		Model:   model,
 		Client:  &http.Client{Timeout: 300 * time.Second},
 		History: []ollamaMessage{},

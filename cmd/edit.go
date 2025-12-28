@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/broman0x/forgeai-cli/internal/ai"
@@ -31,9 +32,16 @@ func init() {
 }
 
 func StartEditModeInteractive(scanner *bufio.Scanner, prov ai.Provider) {
-	ui.PrintHeader("AI CODE EDITOR")
+	cTitle := color.New(color.FgHiCyan, color.Bold).SprintFunc()
+	cPrompt := color.New(color.FgWhite).SprintFunc()
+	cSubtle := color.New(color.FgHiBlack).SprintFunc()
 
-	fmt.Print("  1. Enter filename path (or 'back'): ")
+	fmt.Println()
+	fmt.Println(cTitle("  CODE EDITOR"))
+	fmt.Println(cSubtle("  ───────────────────────────────────────────"))
+	fmt.Println()
+
+	fmt.Print(cPrompt("  File path: "))
 	if !scanner.Scan() {
 		return
 	}
@@ -45,7 +53,7 @@ func StartEditModeInteractive(scanner *bufio.Scanner, prov ai.Provider) {
 		return
 	}
 
-	fmt.Print("  2. Enter Instruction: ")
+	fmt.Print(cPrompt("  Instruction: "))
 	if !scanner.Scan() {
 		return
 	}
@@ -57,7 +65,7 @@ func StartEditModeInteractive(scanner *bufio.Scanner, prov ai.Provider) {
 
 	runEditLogic(prov, filePath, instruction, scanner)
 
-	color.New(color.Faint).Print("\n  [Press Enter to return]")
+	fmt.Print(cSubtle("\n  Press Enter to continue..."))
 	scanner.Scan()
 	fmt.Print("\033[H\033[2J")
 	ui.ShowStartupBanner()
@@ -66,16 +74,30 @@ func StartEditModeInteractive(scanner *bufio.Scanner, prov ai.Provider) {
 func runEditLogic(prov ai.Provider, filePath, instruction string, scanner *bufio.Scanner) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		color.Red("  ✖ File error: %v", err)
+		color.Red("  Error: %v", err)
 		return
 	}
 
-	fmt.Println("  Processing...")
-	prompt := fmt.Sprintf("Rewrite code. Instruction: %s. Return ONLY code.\nCode:\n%s", instruction, string(content))
+	ext := filepath.Ext(filePath)
+	lang := detectLanguage(ext)
+
+	spinner := ui.NewSpinner("Processing request")
+	spinner.Start()
+
+	prompt := fmt.Sprintf(`You are an expert programmer. Modify the following %s code according to this instruction: "%s"
+
+IMPORTANT: Return ONLY the modified code without any explanations, comments, or markdown formatting.
+
+File: %s
+
+Code:
+%s`, lang, instruction, filePath, string(content))
 
 	newCode, err := prov.Send(prompt)
+	spinner.Stop()
+
 	if err != nil {
-		color.Red("Error: %v", err)
+		color.Red("  Error: %v", err)
 		return
 	}
 
@@ -85,32 +107,74 @@ func runEditLogic(prov ai.Provider, filePath, instruction string, scanner *bufio
 		A:        difflib.SplitLines(string(content)),
 		B:        difflib.SplitLines(newCode),
 		FromFile: "Original",
-		ToFile:   "Proposed",
+		ToFile:   "Modified",
 		Context:  3,
 	}
-	text, _ := difflib.GetUnifiedDiffString(diff)
+	diffText, _ := difflib.GetUnifiedDiffString(diff)
 
-	if strings.TrimSpace(text) == "" {
-		color.Yellow("  No changes proposed.")
+	if strings.TrimSpace(diffText) == "" {
+		color.Yellow("\n  No changes detected")
 		return
 	}
 
-	fmt.Println("\n" + color.New(color.Bold).Sprint("DIFF PREVIEW:"))
-	printDiff(text)
+	cTitle := color.New(color.FgHiCyan, color.Bold).SprintFunc()
+	cSubtle := color.New(color.FgHiBlack).SprintFunc()
+	fmt.Printf("\n  %s\n", cTitle("DIFF PREVIEW"))
+	fmt.Println(cSubtle("  ───────────────────────────────────────────"))
+	printDiff(diffText)
+	fmt.Println(cSubtle("  ───────────────────────────────────────────"))
 
-	if confirm(scanner, "\n  Apply changes?") {
+	if confirm(scanner, "\n  Apply changes? [y/N]") {
 		os.WriteFile(filePath, []byte(newCode), 0644)
-		color.Green("  ✔ Saved.")
+		color.Green("  Changes applied successfully")
 	} else {
-		color.Yellow("  ✖ Discarded.")
+		color.Yellow("  Changes discarded")
 	}
+}
+
+func detectLanguage(ext string) string {
+	langMap := map[string]string{
+		".js":    "JavaScript",
+		".ts":    "TypeScript",
+		".py":    "Python",
+		".go":    "Go",
+		".java":  "Java",
+		".cpp":   "C++",
+		".c":     "C",
+		".cs":    "C#",
+		".rb":    "Ruby",
+		".php":   "PHP",
+		".rs":    "Rust",
+		".kt":    "Kotlin",
+		".swift": "Swift",
+		".jsx":   "React JSX",
+		".tsx":   "React TSX",
+		".vue":   "Vue",
+		".html":  "HTML",
+		".css":   "CSS",
+		".scss":  "SCSS",
+		".sql":   "SQL",
+		".sh":    "Shell",
+	}
+
+	if lang, ok := langMap[strings.ToLower(ext)]; ok {
+		return lang
+	}
+	return "code"
 }
 
 func cleanMarkdown(code string) string {
 	lines := strings.Split(code, "\n")
 	var out []string
+	inCodeBlock := false
+
 	for _, l := range lines {
-		if !strings.HasPrefix(strings.TrimSpace(l), "```") {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "```") {
+			inCodeBlock = !inCodeBlock
+			continue
+		}
+		if !inCodeBlock || trimmed != "" {
 			out = append(out, l)
 		}
 	}
@@ -118,20 +182,29 @@ func cleanMarkdown(code string) string {
 }
 
 func printDiff(diff string) {
+	cAdd := color.New(color.FgGreen)
+	cDel := color.New(color.FgRed)
+	cInfo := color.New(color.FgCyan)
+	cNormal := color.New(color.FgWhite)
+
 	lines := strings.Split(diff, "\n")
 	for _, line := range lines {
-		if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
-			color.Green(line)
-		} else if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---") {
-			color.Red(line)
+		if strings.HasPrefix(line, "+++") || strings.HasPrefix(line, "---") {
+			cInfo.Printf("  %s\n", line)
+		} else if strings.HasPrefix(line, "+") {
+			cAdd.Printf("  %s\n", line)
+		} else if strings.HasPrefix(line, "-") {
+			cDel.Printf("  %s\n", line)
+		} else if strings.HasPrefix(line, "@@") {
+			cInfo.Printf("  %s\n", line)
 		} else {
-			fmt.Println(line)
+			cNormal.Printf("  %s\n", line)
 		}
 	}
 }
 
 func confirm(scanner *bufio.Scanner, q string) bool {
-	fmt.Print(q + " [y/N]: ")
+	fmt.Print(q + " ")
 	if scanner != nil {
 		if !scanner.Scan() {
 			return false
